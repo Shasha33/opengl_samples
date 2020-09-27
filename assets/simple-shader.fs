@@ -4,24 +4,35 @@ out vec4 o_frag_color;
 
 struct vx_output_t
 {
-    vec3 color;
+    vec2 point;
 };
 
 in vx_output_t v_out;
 
-uniform vec3 u_color;
-uniform float u_time;
-uniform sampler2D u_tex;
+uniform sampler1D u_tex;
+uniform int u_iterations;
+uniform vec2 u_c;
 
 void main()
 {
-    vec3 texture = texture(u_tex, v_out.color.xy).rgb;
-    //o_frag_color = vec4(v_out.color.xy,0,1.0);
+    vec2 z = v_out.point;
 
-    //if ((int(gl_FragCoord.x / 30) % 2 == 0) ^^ (int(gl_FragCoord.y / 30) % 2 == 0))
-    //  discard;
+    int i;
+    for(i = 0; i < u_iterations; i++) {
+        float x = (z.x * z.x - z.y * z.y) + u_c.x;
+        float y = (z.y * z.x + z.x * z.y) + u_c.y;
 
-    o_frag_color = vec4(texture,1.0);
+        if((x * x + y * y) > 3.0) break;
+        z.x = x;
+        z.y = y;
+    }
 
-    //gl_FragDepth = 0;
+    
+    vec3 texture = texture(u_tex, v_out.point.x).rgb;
+    if (i == u_iterations) {
+        o_frag_color = vec4(0, 0, 0, 1);    
+    } else {
+        o_frag_color = texture1D(u_tex, i / 15.0);
+    }
+
 }

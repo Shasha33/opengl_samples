@@ -5,26 +5,21 @@ layout (location = 1) in vec3 in_color;
 
 struct vx_output_t
 {
-    vec3 color;
+    vec2 point;
 };
 out vx_output_t v_out;
 
-uniform float u_rotation;
 uniform vec2 u_translation;
-uniform mat4 u_mvp;
+uniform vec2 u_scroll_center;
+uniform float u_zoom;
 
 void main()
 {
     vec2 rotated_pos = in_position.xy;
-    //rotated_pos.x = u_translation.x + in_position.x * cos(u_rotation) - in_position.y * sin(u_rotation);
-    //rotated_pos.y = u_translation.y + in_position.x * sin(u_rotation) + in_position.y * cos(u_rotation);
 
-    v_out.color = in_color;
+    rotated_pos = (in_position.xy - u_scroll_center) * u_zoom + u_scroll_center + u_translation;
 
-    gl_Position = u_mvp * vec4(rotated_pos.x, rotated_pos.y, in_position.z, 1.0);
+    v_out.point = in_position.xy;
 
-    //gl_Position.xyz *= 0;
-
-    //gl_Position = u_mvp * vec4(3 * rotated_pos.x, 2 * rotated_pos.y, in_position.z, 1.0);
-    //gl_Position /= gl_Position.w;
+    gl_Position = vec4(rotated_pos.x, rotated_pos.y, in_position.z, 1.0);
 }
