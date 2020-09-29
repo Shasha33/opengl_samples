@@ -27,12 +27,10 @@ void main()
         z.y = y;
     }
 
-    
-    vec3 texture = texture(u_tex, v_out.point.x).rgb;
     if (i == u_iterations) {
         o_frag_color = vec4(0, 0, 0, 1);    
     } else {
-        o_frag_color = texture1D(u_tex, i / 15.0);
+        o_frag_color = texture(u_tex, i / 15.0);
     }
 
 }
