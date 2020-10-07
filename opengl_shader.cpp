@@ -4,27 +4,24 @@
 #include <sstream>
 #include <iostream>
 
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
+
 namespace
 {
    std::string read_shader_code(const std::string & fname)
    {
       std::stringstream file_stream;
-      try
-      {
-         std::ifstream file(fname.c_str());
-         file_stream << file.rdbuf();
-      }
-      catch (std::exception const & e)
-      {
-         std::cerr << "Error reading shader file: " << e.what() << std::endl;
-      }
+      std::ifstream file(fname.c_str());
+      file_stream << file.rdbuf();
       return file_stream.str();
-
    }
 }
 
 shader_t::shader_t(const std::string& vertex_code_fname, const std::string& fragment_code_fname)
 {
+   spdlog::info("Creating shader, vertex: {}, fragment: {}", vertex_code_fname, fragment_code_fname);
+
    const auto vertex_code = read_shader_code(vertex_code_fname);
    const auto fragment_code = read_shader_code(fragment_code_fname);
    compile(vertex_code, fragment_code);
@@ -99,13 +96,13 @@ void shader_t::check_compile_error() {
    if (!success)
    {
       glGetShaderInfoLog(vertex_id_, 1024, NULL, infoLog);
-      std::cerr << "Error compiling Vertex shader_t:\n" << infoLog << std::endl;
+      throw std::runtime_error(fmt::format("Error compiling Vertex shader: {}", infoLog));
    }
    glGetShaderiv(fragment_id_, GL_COMPILE_STATUS, &success);
    if (!success)
    {
       glGetShaderInfoLog(fragment_id_, 1024, NULL, infoLog);
-      std::cerr << "Error compiling Fragment shader_t:\n" << infoLog << std::endl;
+      throw std::runtime_error(fmt::format("Error compiling Fragment shader: {}", infoLog));
    }
 }
 
@@ -116,6 +113,6 @@ void shader_t::check_linking_error() {
    if (!success)
    {
       glGetProgramInfoLog(program_id_, 1024, NULL, infoLog);
-      std::cerr << "Error Linking shader_t Program:\n" << infoLog << std::endl;
+      throw std::runtime_error(fmt::format("Error Linking Program: {}", infoLog));
    }
 }
