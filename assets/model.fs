@@ -21,6 +21,6 @@ void main()
 
   float dot_val = 0.1 + 0.9 * clamp(dot(normal, u_light), 0, 1);
 
-  // o_frag_color = vec4(u_color * vec3(dot_val), 1);
-  o_frag_color = vec4(u_color, 1);
+  o_frag_color = vec4(u_color * vec3(dot_val), 1);
+  // o_frag_color = vec4(u_color, 1);
 }

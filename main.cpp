@@ -307,6 +307,7 @@ int main(int, char **)
          {
             auto mvp = projection * view * model;
 
+            glEnable(GL_DEPTH_TEST);
             glViewport(0, 0, display_w, display_h);
 
             glDepthMask(GL_FALSE);
@@ -321,12 +322,13 @@ int main(int, char **)
          
          // Render offscreen
          {
-            auto cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.001f);
+            auto cat_model = model;
+            cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.01f);
             auto cat_mvp = projection * view * cat_model;
 
 
             glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LEQUAL);
+            glDepthFunc(GL_GEQUAL);
 
             cat_shader.use();
             cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
