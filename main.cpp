@@ -63,8 +63,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
 {
    if (is_pressed) {
-      translation[0] += (saved_position[0] - xpos) / window_h * 50; 
-      translation[1] += (saved_position[1] - ypos) / window_w * 10;
+      translation[0] += (saved_position[0] - xpos) / window_h; 
+      translation[1] += (saved_position[1] - ypos) / window_w;
       saved_position[0] = xpos;
       saved_position[1] = ypos;
    }
@@ -251,8 +251,8 @@ int main(int, char **)
 
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      auto cat = create_model("assets/pallas_cat.obj");
-      // render_target_t rt(512, 512);
+      auto cat = create_model("assets/ball.obj");
+      // render_target_t rt(window_h/2, window_w/2);
 
       GLuint vbo, vao, ebo;
       create_skybox(vbo, vao, ebo);
@@ -297,43 +297,11 @@ int main(int, char **)
          //ImGui::ColorEdit3("color", color);
          //ImGui::End();
 
-         auto model = glm::rotate(glm::mat4(1.0), glm::radians((float) translation[0]), glm::vec3(0, 1, 0));
+         auto model = glm::rotate(glm::mat4(1.0), glm::radians((float) translation[0] * 60), glm::vec3(0, 1, 0));
          // model =  glm::rotate(model, glm::radians((float) translation[1]), glm::vec3(1, 0, 0));
          auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
          auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
 
-         // Render offscreen
-         // {
-         //    auto model = glm::rotate(glm::mat4(1), glm::radians(time_from_start * 10), glm::vec3(0, 1, 0)) * glm::scale(glm::vec3(7, 7, 7));
-         //    auto view = glm::lookAt<float>(glm::vec3(0, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-         //    auto projection = glm::perspective<float>(90, float(rt.width_) / rt.height_, 0.1, 100);
-         //    auto mvp = projection * view * model;
-
-
-         //    glBindFramebuffer(GL_FRAMEBUFFER, rt.fbo_);
-         //    glViewport(0, 0, rt.width_, rt.height_);
-         //    glEnable(GL_DEPTH_TEST);
-         //    glColorMask(1, 1, 1, 1);
-         //    glDepthMask(1);
-         //    glDepthFunc(GL_LEQUAL);
-
-         //    glClearColor(0.3, 0.3, 0.3, 1);
-         //    glClearDepth(1);
-         //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-         //    cat_shader.use();
-         //    cat_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
-         //    cat_shader.set_uniform("u_model", glm::value_ptr(model));
-
-         //    glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians(time_from_start * 60));
-
-         //    cat_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
-         //    cat_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
-         //    cat->draw();
-
-         //    glDisable(GL_DEPTH_TEST);
-         //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-         // }
 
          // Render main
          {
@@ -348,10 +316,32 @@ int main(int, char **)
             glBindVertexArray(vao);
             glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
             glDrawArrays(GL_TRIANGLES, 0, 36);
-            glDepthMask(GL_TRUE);
             glBindVertexArray(0);
          }
          
+         // Render offscreen
+         {
+            auto cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.001f);
+            auto cat_mvp = projection * view * cat_model;
+
+
+            glEnable(GL_DEPTH_TEST);
+            glDepthFunc(GL_LEQUAL);
+
+            cat_shader.use();
+            cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
+            cat_shader.set_uniform("u_model", glm::value_ptr(model));
+
+            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians((float) translation[0] * 60));
+
+            cat_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
+            cat_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
+            cat->draw();
+
+            glDisable(GL_DEPTH_TEST);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+         }
+
          // Generate gui render commands
          ImGui::Render();
 
