@@ -232,7 +232,7 @@ int main(int, char **)
       glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
       glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
       glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-      //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+      glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 
       // Create window with graphics context
       GLFWwindow *window = glfwCreateWindow(1280, 720, "Dear ImGui - Conan", NULL, NULL);
@@ -251,8 +251,7 @@ int main(int, char **)
 
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      auto cat = create_model("assets/ball.obj");
-      // render_target_t rt(window_h/2, window_w/2);
+      auto cat = create_model("assets/backpack.obj");
 
       GLuint vbo, vao, ebo;
       create_skybox(vbo, vao, ebo);
@@ -261,7 +260,8 @@ int main(int, char **)
 
       // init shader
       shader_t cube_shader("assets/simple-shader.vs", "assets/simple-shader.fs");
-      shader_t cat_shader("assets/model.vs", "assets/model.fs");
+      shader_t cat_shader("assets/model.vs", "assets/model_reflect.fs");
+      shader_t cat_shader_refract("assets/model.vs", "assets/model_refract.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -288,17 +288,17 @@ int main(int, char **)
          ImGui::NewFrame();
 
          // GUI
-         //ImGui::Begin("Triangle Position/Color");
+         ImGui::Begin("Object settings");
          //static float rotation = 0.0;
-         //ImGui::SliderFloat("rotation", &rotation, 0, 2 * glm::pi<float>());
-         //static float translation[] = { 0.0, 0.0 };
-         //ImGui::SliderFloat2("position", translation, -1.0, 1.0);
-         //static float color[4] = { 1.0f,1.0f,1.0f,1.0f };
-         //ImGui::ColorEdit3("color", color);
-         //ImGui::End();
+
+         static float ratio = 1.0;
+         ImGui::SliderFloat("rotation", &ratio, 0, 10);
+
+         static int refraction = 0;
+         ImGui::SliderInt("refraction", &refraction, 0, 1);
+         ImGui::End();
 
          auto model = glm::rotate(glm::mat4(1.0), glm::radians((float) translation[0] * 60), glm::vec3(0, 1, 0));
-         // model =  glm::rotate(model, glm::radians((float) translation[1]), glm::vec3(1, 0, 0));
          auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
          auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
 
@@ -307,7 +307,6 @@ int main(int, char **)
          {
             auto mvp = projection * view * model;
 
-            glEnable(GL_DEPTH_TEST);
             glViewport(0, 0, display_w, display_h);
 
             glDepthMask(GL_FALSE);
@@ -323,21 +322,31 @@ int main(int, char **)
          // Render offscreen
          {
             auto cat_model = model;
-            cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.01f);
+            cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.2f);
             auto cat_mvp = projection * view * cat_model;
+            auto model_view = view * cat_model;
 
+            auto viewModel = glm::inverse(model_view);
+            glm::vec3 cameraPos(viewModel[3]);
 
             glEnable(GL_DEPTH_TEST);
             glDepthFunc(GL_GEQUAL);
 
-            cat_shader.use();
-            cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-            cat_shader.set_uniform("u_model", glm::value_ptr(model));
-
-            glm::vec3 light_dir = glm::rotateY(glm::vec3(1, 0, 0), glm::radians((float) translation[0] * 60));
-
-            cat_shader.set_uniform<float>("u_color", 0.83, 0.64, 0.31);
-            cat_shader.set_uniform<float>("u_light", light_dir.x, light_dir.y, light_dir.z);
+            if (refraction) {
+               cat_shader_refract.use();
+               cat_shader_refract.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
+               cat_shader_refract.set_uniform("u_model", glm::value_ptr(model));
+               cat_shader_refract.set_uniform("u_ration", ratio);
+               cat_shader_refract.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+            } else {
+               cat_shader.use();
+               cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
+               cat_shader.set_uniform("u_model", glm::value_ptr(model));
+               cat_shader.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+            }
+            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
             cat->draw();
 
             glDisable(GL_DEPTH_TEST);
