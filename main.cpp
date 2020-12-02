@@ -133,6 +133,7 @@ unsigned int cubemap_texture() {
    unsigned int texture;
    glGenTextures(1, &texture);
    glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+   stbi_set_flip_vertically_on_load(false);
 
    int width, height, nrChannels;
    std::vector<std::string> faces {
@@ -148,7 +149,6 @@ unsigned int cubemap_texture() {
    for (unsigned int i = 0; i < faces.size(); i++) {
       unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
       glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-      // std::cout << (data != 0) << std::endl;
       stbi_image_free(data);
    }
 
@@ -251,7 +251,7 @@ int main(int, char **)
 
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      auto cat = create_model("assets/backpack.obj");
+      auto cat = create_model("assets/sphere.obj");
 
       GLuint vbo, vao, ebo;
       create_skybox(vbo, vao, ebo);
@@ -289,20 +289,25 @@ int main(int, char **)
 
          // GUI
          ImGui::Begin("Object settings");
-         //static float rotation = 0.0;
 
          static float ratio = 1.0;
-         ImGui::SliderFloat("rotation", &ratio, 0, 10);
+         ImGui::SliderFloat("rotation", &ratio, 0, 3);
 
          static int refraction = 0;
          ImGui::SliderInt("refraction", &refraction, 0, 1);
          ImGui::End();
 
-         auto model = glm::rotate(glm::mat4(1.0), glm::radians((float) translation[0] * 60), glm::vec3(0, 1, 0));
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, -1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-         auto projection = glm::perspective<float>(90, float(display_w) / display_h, 0.1, 100);
+         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+         auto model = glm::mat4(1.0);
+         auto view = glm::lookAt<float>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)) *
+            glm::rotate(model, glm::radians((float) translation[1] * 180), glm::vec3(1, 0, 0)) * 
+            glm::rotate(model, glm::radians((float) translation[0] * 180), glm::vec3(0, 1, 0));
+         auto projection = glm::perspective<float>(glm::radians(90.0), float(display_w) / display_h, 0.1, 100);
 
+         auto cameraPos = glm::vec3(glm::inverse(view)[3]);
+         // printf("%f %f %f\n", cameraPos.x, cameraPos.y, cameraPos.z);
          // Render main
          {
             auto mvp = projection * view * model;
@@ -317,31 +322,29 @@ int main(int, char **)
             glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
+            glDepthMask(GL_TRUE);
          }
          
          // Render offscreen
          {
-            auto cat_model = model;
-            cat_model = model * glm::scale(glm::vec3(1, 1, 1) * (float) zoom * 0.2f);
+            auto cat_model = model * glm::scale(glm::vec3(1, 1, 1)  * 0.2f * zoom * 1.0f);
             auto cat_mvp = projection * view * cat_model;
             auto model_view = view * cat_model;
 
-            auto viewModel = glm::inverse(model_view);
-            glm::vec3 cameraPos(viewModel[3]);
-
             glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_GEQUAL);
+            glDepthFunc(GL_LEQUAL);
 
             if (refraction) {
                cat_shader_refract.use();
                cat_shader_refract.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-               cat_shader_refract.set_uniform("u_model", glm::value_ptr(model));
-               cat_shader_refract.set_uniform("u_ration", ratio);
+               cat_shader_refract.set_uniform("u_model", glm::value_ptr(cat_model));
+               cat_shader_refract.set_uniform("u_ratio", ratio);
+               cat_shader_refract.set_uniform("u_view", glm::value_ptr(view));
                cat_shader_refract.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
             } else {
                cat_shader.use();
                cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-               cat_shader.set_uniform("u_model", glm::value_ptr(model));
+               cat_shader.set_uniform("u_model", glm::value_ptr(cat_model));
                cat_shader.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
             }
             

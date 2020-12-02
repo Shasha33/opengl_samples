@@ -54,9 +54,13 @@ obj_model_t::obj_model_t(char const * filename)
          const auto vert_y = attrib.vertices[3 * shape.mesh.indices[i].vertex_index + 1];
          const auto vert_z = attrib.vertices[3 * shape.mesh.indices[i].vertex_index + 2];
          vertices.push_back({vert_x, vert_y, vert_z});
+
+         const auto norm_x = attrib.normals[3 * shape.mesh.indices[i].normal_index];
+         const auto norm_y = attrib.normals[3 * shape.mesh.indices[i].normal_index + 1];
+         const auto norm_z = attrib.normals[3 * shape.mesh.indices[i].normal_index + 2];
+         vertices.push_back({norm_x, norm_y, norm_z});
       }
    }
-
    num_vertices_ = vertices.size();
 
    glGenVertexArrays(1, &vao_);
@@ -64,8 +68,10 @@ obj_model_t::obj_model_t(char const * filename)
    glBindVertexArray(vao_);
    glBindBuffer(GL_ARRAY_BUFFER, vbo_);
    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
+   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
    glEnableVertexAttribArray(0);
+   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+   glEnableVertexAttribArray(1);
    glBindBuffer(GL_ARRAY_BUFFER, 0);
    glBindVertexArray(0);
 }

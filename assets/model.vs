@@ -17,6 +17,7 @@ void main()
 {
   gl_Position = u_mvp * vec4(in_position, 1.0);
 
-  v_out.position_world = (u_model * vec4(in_position, 1.0)).xyz;
-  v_out.normal = mat3(transpose(inverse(u_model))) * in_normal;
+  v_out.position_world = (u_model * vec4(in_position, 1.0)).xyz; 
+  v_out.normal = (u_model * vec4(in_normal, 0)).xyz; 
+  // v_out.normal = in_normal;
 }

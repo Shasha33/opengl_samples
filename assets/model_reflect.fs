@@ -16,9 +16,12 @@ uniform vec3 u_light;
 uniform vec3 u_camera_position;
 uniform samplerCube u_tex;
 
+out vec3 out_R;
+
 void main()
 {             
-    vec3 I = normalize(v_out.position_world - u_camera_position);
+    vec3 I = normalize(u_camera_position - v_out.position_world);
     vec3 R = reflect(I, normalize(v_out.normal));
     o_frag_color = vec4(texture(u_tex, R).rgb, 1.0);
+    out_R = R;
 }
