@@ -5,22 +5,29 @@ out vec4 o_frag_color;
 struct vx_output_t
 {
     vec3 position_world;
+    vec3 normal;
 };
-
 in vx_output_t v_out;
 
-uniform vec3 u_color;
-uniform vec3 u_light;
+uniform vec3 u_camera_position;
+uniform samplerCube u_tex;
+uniform float u_ratio;
+
 
 void main()
 {
-  vec3 vec_x = dFdx(v_out.position_world);
-  vec3 vec_y = dFdy(v_out.position_world);
+  vec3 I = normalize(u_camera_position - v_out.position_world);
+  vec3 N = normalize(v_out.normal);
+  vec3 Relf = reflect(I, N);
+  vec3 reflect_color = texture(u_tex, Relf).rgb;
 
-  vec3 normal = normalize(cross(vec_x, vec_y));
+  float coef = 1.0 / u_ratio;
+  vec3 R = refract(I, N, coef);
+  vec3 refract_color = texture(u_tex, R).rgb;
 
-  float dot_val = 0.1 + 0.9 * clamp(dot(normal, u_light), 0, 1);
+  float cos = dot(-I, N);
+  float R0 = ((1.0 - u_ratio) * (1.0 - u_ratio)) / ((1.0 + u_ratio) * (1.0 + u_ratio));
+  float fresnel = R0 + (1 - R0) * pow((1 - cos), 5);
 
-  o_frag_color = vec4(u_color * vec3(dot_val), 1);
-  // o_frag_color = vec4(u_color, 1);
+  o_frag_color = vec4(mix(refract_color, reflect_color, fresnel), 1.0);
 }

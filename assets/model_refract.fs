@@ -10,10 +10,6 @@ struct vx_output_t
 
 in vx_output_t v_out;
 
-uniform vec3 u_color;
-uniform vec3 u_light;
-uniform mat4 u_view;
-
 uniform vec3 u_camera_position;
 uniform samplerCube u_tex;
 uniform float u_ratio;

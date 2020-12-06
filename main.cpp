@@ -161,60 +161,23 @@ unsigned int cubemap_texture() {
    return texture;
 }
 
-struct render_target_t
+
+void load_image(GLuint & texture)
 {
-   render_target_t(int res_x, int res_y);
-   ~render_target_t();
+   int width, height, channels;
+   stbi_set_flip_vertically_on_load(true);
+   unsigned char *image = stbi_load("assets/flower.png",
+      &width,
+      &height,
+      &channels,
+      STBI_rgb_alpha);
 
-   GLuint fbo_;
-   GLuint color_, depth_;
-   int width_, height_;
-};
+   glGenTextures(1, &texture);
+   glBindTexture(GL_TEXTURE_2D, texture);
+   glTexImage1D(GL_TEXTURE_2D, 1, GL_RGB, width, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+   glGenerateMipmap(GL_TEXTURE_2D);
 
-render_target_t::render_target_t(int res_x, int res_y)
-{
-   width_ = res_x;
-   height_ = res_y;
-
-   glGenTextures(1, &color_);
-   glBindTexture(GL_TEXTURE_2D, color_);
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, res_x, res_y, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-
-   glGenTextures(1, &depth_);
-   glBindTexture(GL_TEXTURE_2D, depth_);
-   glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, res_x, res_y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
-
-   glBindTexture(GL_TEXTURE_2D, 0);
-
-   glGenFramebuffers(1, &fbo_);
-
-   glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
-
-   glFramebufferTexture2D(GL_FRAMEBUFFER,
-      GL_COLOR_ATTACHMENT0,
-      GL_TEXTURE_2D,
-      color_,
-      0);
-
-   glFramebufferTexture2D(GL_FRAMEBUFFER,
-      GL_DEPTH_ATTACHMENT,
-      GL_TEXTURE_2D,
-      depth_,
-      0);
-
-   GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-   if (status != GL_FRAMEBUFFER_COMPLETE)
-      throw std::runtime_error("Framebuffer incomplete");
-
-   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-}
-
-render_target_t::~render_target_t()
-{
-   glDeleteFramebuffers(1, &fbo_);
-   glDeleteTextures(1, &depth_);
-   glDeleteTextures(1, &color_);
+   stbi_image_free(image);
 }
 
 
@@ -260,8 +223,9 @@ int main(int, char **)
 
       // init shader
       shader_t cube_shader("assets/simple-shader.vs", "assets/simple-shader.fs");
-      shader_t cat_shader("assets/model.vs", "assets/model_reflect.fs");
+      shader_t cat_shader_reflect("assets/model.vs", "assets/model_reflect.fs");
       shader_t cat_shader_refract("assets/model.vs", "assets/model_refract.fs");
+      shader_t cat_shader("assets/model.vs", "assets/model.fs");
 
       // Setup GUI context
       IMGUI_CHECKVERSION();
@@ -290,13 +254,18 @@ int main(int, char **)
          // GUI
          ImGui::Begin("Object settings");
 
-         static float ratio = 1.0;
-         ImGui::SliderFloat("rotation", &ratio, 0, 3);
+         static float ratio = 1.33;
+         ImGui::SliderFloat("refraction coef", &ratio, 1, 3);
 
-         static int refraction = 0;
-         ImGui::SliderInt("refraction", &refraction, 0, 1);
+         static bool reflection = 0;
+         ImGui::Checkbox("only reflection", &reflection);
+
+         static bool refraction = 0;
+         ImGui::Checkbox("only refraction", &refraction);
+
          ImGui::End();
 
+         glColorMask(1,1,1,1);
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -307,18 +276,17 @@ int main(int, char **)
          auto projection = glm::perspective<float>(glm::radians(90.0), float(display_w) / display_h, 0.1, 100);
 
          auto cameraPos = glm::vec3(glm::inverse(view)[3]);
-         // printf("%f %f %f\n", cameraPos.x, cameraPos.y, cameraPos.z);
          // Render main
          {
             auto mvp = projection * view * model;
 
             glViewport(0, 0, display_w, display_h);
-
-            glDepthMask(GL_FALSE);
+            
             cube_shader.use();
             cube_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
 
             glBindVertexArray(vao);
+            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
             glDrawArrays(GL_TRIANGLES, 0, 36);
             glBindVertexArray(0);
@@ -331,28 +299,38 @@ int main(int, char **)
             auto cat_mvp = projection * view * cat_model;
             auto model_view = view * cat_model;
 
-            glEnable(GL_DEPTH_TEST);
-            glDepthFunc(GL_LEQUAL);
 
             if (refraction) {
                cat_shader_refract.use();
                cat_shader_refract.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
                cat_shader_refract.set_uniform("u_model", glm::value_ptr(cat_model));
                cat_shader_refract.set_uniform("u_ratio", ratio);
-               cat_shader_refract.set_uniform("u_view", glm::value_ptr(view));
                cat_shader_refract.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+            } else if (reflection) {
+               cat_shader_reflect.use();
+               cat_shader_reflect.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
+               cat_shader_reflect.set_uniform("u_model", glm::value_ptr(cat_model));
+               cat_shader_reflect.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
             } else {
                cat_shader.use();
                cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
                cat_shader.set_uniform("u_model", glm::value_ptr(cat_model));
+               cat_shader_refract.set_uniform("u_ratio", ratio);
                cat_shader.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
             }
             
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap);
-            cat->draw();
+            glDepthMask(GL_TRUE);
 
             glDisable(GL_DEPTH_TEST);
+            glColorMask(0, 0, 0, 0);
+            glDepthFunc(GL_LESS);
+            cat->draw();
+
+            glEnable(GL_DEPTH_TEST);
+            glColorMask(1, 1, 1, 1);
+            glDepthFunc(GL_LEQUAL);
+            cat->draw();
+
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
          }
 
