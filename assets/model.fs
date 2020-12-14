@@ -16,7 +16,7 @@ uniform float u_ratio;
 
 void main()
 {
-  vec3 I = normalize(u_camera_position - v_out.position_world);
+  vec3 I = normalize(v_out.position_world - u_camera_position);
   vec3 N = normalize(v_out.normal);
   vec3 Relf = reflect(I, N);
   vec3 reflect_color = texture(u_tex, Relf).rgb;

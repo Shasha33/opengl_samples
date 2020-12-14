@@ -36,12 +36,13 @@
 
 #include "obj_model.h"
 
-// Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 bool is_pressed = 0;
 float zoom = 1;
 double saved_position[] = { 0.0, 0.0 };
 double translation[] = { 0.0, 0.0 };
 double window_h = 1280, window_w = 720;
+
+glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
 
 static void glfw_error_callback(int error, const char *description)
 {
@@ -68,6 +69,16 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
       saved_position[0] = xpos;
       saved_position[1] = ypos;
    }
+
+   if (translation[1] > glm::half_pi<double>()) {
+      translation[1] = glm::half_pi<double>();
+   } else if (translation[1] < -glm::half_pi<double>()) {
+      translation[1] = -glm::half_pi<double>();
+   }
+
+   cameraPos.x = cos(translation[0]) * cos(translation[1]);
+   cameraPos.y = sin(translation[1]);
+   cameraPos.z = sin(translation[0]) * cos(translation[1]);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
@@ -162,25 +173,6 @@ unsigned int cubemap_texture() {
 }
 
 
-void load_image(GLuint & texture)
-{
-   int width, height, channels;
-   stbi_set_flip_vertically_on_load(true);
-   unsigned char *image = stbi_load("assets/flower.png",
-      &width,
-      &height,
-      &channels,
-      STBI_rgb_alpha);
-
-   glGenTextures(1, &texture);
-   glBindTexture(GL_TEXTURE_2D, texture);
-   glTexImage1D(GL_TEXTURE_2D, 1, GL_RGB, width, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-   glGenerateMipmap(GL_TEXTURE_2D);
-
-   stbi_image_free(image);
-}
-
-
 int main(int, char **)
 {
    try
@@ -214,7 +206,7 @@ int main(int, char **)
 
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-      auto cat = create_model("assets/sphere.obj");
+      auto cat = create_model("assets/fat_cat.obj");
 
       GLuint vbo, vao, ebo;
       create_skybox(vbo, vao, ebo);
@@ -234,8 +226,6 @@ int main(int, char **)
       ImGui_ImplGlfw_InitForOpenGL(window, true);
       ImGui_ImplOpenGL3_Init(glsl_version);
       ImGui::StyleColorsDark();
-
-      auto const start_time = std::chrono::steady_clock::now();
 
       while (!glfwWindowShouldClose(window))
       {
@@ -269,17 +259,13 @@ int main(int, char **)
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto model = glm::mat4(1.0);
-         auto view = glm::lookAt<float>(glm::vec3(0, 0, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)) *
-            glm::rotate(model, glm::radians((float) translation[1] * 180), glm::vec3(1, 0, 0)) * 
-            glm::rotate(model, glm::radians((float) translation[0] * 180), glm::vec3(0, 1, 0));
-         auto projection = glm::perspective<float>(glm::radians(90.0), float(display_w) / display_h, 0.1, 100);
+         auto view = glm::lookAt(cameraPos * zoom, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+         auto projection = glm::perspective<float>(glm::radians(90.0), (float)display_w / display_h, 0.1, 100);
 
-         auto cameraPos = glm::vec3(glm::inverse(view)[3]);
          // Render main
          {
-            auto mvp = projection * view * model;
-
+            auto mvp = projection * glm::mat4(glm::mat3(view));
+            
             glViewport(0, 0, display_w, display_h);
             
             cube_shader.use();
@@ -295,28 +281,27 @@ int main(int, char **)
          
          // Render offscreen
          {
-            auto cat_model = model * glm::scale(glm::vec3(1, 1, 1)  * 0.2f * zoom * 1.0f);
-            auto cat_mvp = projection * view * cat_model;
-            auto model_view = view * cat_model;
+            auto model = glm::scale(glm::vec3(1, 1, 1) * 0.03f);
+            auto cat_mvp = projection * view * model;
 
 
             if (refraction) {
                cat_shader_refract.use();
                cat_shader_refract.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-               cat_shader_refract.set_uniform("u_model", glm::value_ptr(cat_model));
+               cat_shader_refract.set_uniform("u_model", glm::value_ptr(model));
                cat_shader_refract.set_uniform("u_ratio", ratio);
-               cat_shader_refract.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+               cat_shader_refract.set_uniform("u_camera_position", cameraPos.x, cameraPos.y, cameraPos.z);
             } else if (reflection) {
                cat_shader_reflect.use();
                cat_shader_reflect.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-               cat_shader_reflect.set_uniform("u_model", glm::value_ptr(cat_model));
-               cat_shader_reflect.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+               cat_shader_reflect.set_uniform("u_model", glm::value_ptr(model));
+               cat_shader_reflect.set_uniform("u_camera_position", cameraPos.x, cameraPos.y, cameraPos.z);
             } else {
                cat_shader.use();
                cat_shader.set_uniform("u_mvp", glm::value_ptr(cat_mvp));
-               cat_shader.set_uniform("u_model", glm::value_ptr(cat_model));
+               cat_shader.set_uniform("u_model", glm::value_ptr(model));
                cat_shader_refract.set_uniform("u_ratio", ratio);
-               cat_shader.set_uniform("u_camera_position", glm::value_ptr(cameraPos));
+               cat_shader.set_uniform("u_camera_position", cameraPos.x, cameraPos.y, cameraPos.z);
             }
             
             glDepthMask(GL_TRUE);

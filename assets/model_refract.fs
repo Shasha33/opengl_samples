@@ -16,7 +16,7 @@ uniform float u_ratio;
 
 void main()
 {
-    vec3 I = normalize(u_camera_position - v_out.position_world);
+    vec3 I = normalize(v_out.position_world - u_camera_position);
     float coef = 1.0 / u_ratio;
     vec3 R = refract(I, normalize(v_out.normal), coef);
     o_frag_color = vec4(texture(u_tex, R).rgb, 1.0);
