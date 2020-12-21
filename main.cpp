@@ -430,6 +430,9 @@ int main(int, char **)
             torus_shader.use();
             torus_shader.set_uniform("u_repeat", u_repeat);
             torus_shader.set_uniform("u_mvp", glm::value_ptr(mvp));
+            torus_shader.set_uniform("u_ufo_pos", tex_point.x, tex_point.y, tex_point.z);
+            torus_shader.set_uniform("u_ufo_normal", tex_normal.x, tex_normal.y, tex_normal.z);
+            torus_shader.set_uniform("u_ufo_range", 0.5f);
             torus_shader.set_uniform("u_tex1", int(0));
             torus_shader.set_uniform("u_tex2", int(1));
             torus_shader.set_uniform("u_tex3", int(2));

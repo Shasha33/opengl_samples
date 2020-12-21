@@ -10,8 +10,13 @@ struct vx_output_t
     vec3 position_world;
     vec2 texcoord;
     vec3 color_weight;
+    vec3 ufo_pos;
+    vec3 ufo_normal;
 };
 out vx_output_t v_out;
+
+uniform vec3 u_ufo_pos;
+uniform vec3 u_ufo_normal;
 
 uniform sampler2D u_tex1;
 uniform sampler2D u_tex2;
@@ -29,6 +34,8 @@ void main()
   v_out.position_world = (u_model * vec4(in_position + height * in_normal, 1.0)).xyz;
   v_out.texcoord = in_texcoord.xy * u_repeat;
   v_out.color_weight = normalize(vec3((1 - texture_height) * (1 - texture_height), (1 - texture_height) * texture_height, texture_height * texture_height));
-  
+  v_out.ufo_pos = (u_model * vec4(u_ufo_pos, 1.0)).xyz;
+  v_out.ufo_normal = (u_model * vec4(u_ufo_normal, 0)).xyz;
+
   gl_Position = u_mvp * vec4(in_position + in_normal * height, 1.0);
 }
