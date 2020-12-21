@@ -42,7 +42,7 @@ double saved_position[] = { 0.0, 0.0 };
 double translation[] = { 0.0, 0.0 };
 double window_h = 1280, window_w = 720;
 
-glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f,  3.0f);
 
 static void glfw_error_callback(int error, const char *description)
 {
@@ -79,11 +79,17 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
    cameraPos.x = cos(translation[0]) * cos(translation[1]);
    cameraPos.y = sin(translation[1]);
    cameraPos.z = sin(translation[0]) * cos(translation[1]);
+   cameraPos *= zoom;
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
    zoom += yoffset / window_h * 2;
+   
+   cameraPos.x = cos(translation[0]) * cos(translation[1]);
+   cameraPos.y = sin(translation[1]);
+   cameraPos.z = sin(translation[0]) * cos(translation[1]);
+   cameraPos *= zoom;
 }
 
 void create_skybox(GLuint &vbo, GLuint &vao, GLuint &ebo) {
@@ -259,7 +265,7 @@ int main(int, char **)
          glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-         auto view = glm::lookAt(cameraPos * zoom, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+         auto view = glm::lookAt(cameraPos, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
          auto projection = glm::perspective<float>(glm::radians(90.0), (float)display_w / display_h, 0.1, 100);
 
          // Render main
