@@ -18,6 +18,6 @@ spdlog:header_only=True
 
 [imports]
 ./res/bindings, imgui_impl_glfw.cpp -> ../bindings
-./res/bindings, imgui_impl_opengl4.cpp -> ../bindings
+./res/bindings, imgui_impl_opengl3.cpp -> ../bindings
 ./res/bindings, imgui_impl_glfw.h -> ../bindings
-./res/bindings, imgui_impl_opengl4.h -> ../bindings
+./res/bindings, imgui_impl_opengl3.h -> ../bindings
